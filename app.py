@@ -2,6 +2,9 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+import json
+import os
+from datetime import datetime
 
 # ═══════════════════════════════════════════════════
 #  PAGE CONFIG
@@ -211,6 +214,7 @@ with tab1:
         "Что рассчитывать автоматически?",
         ["Количество переходов", "Стоимость клика (CPC)", "Лимит бюджета"],
         horizontal=True,
+        key="calc_mode",
         help=(
             "Выберите один параметр — он будет вычислен из двух остальных. "
             "Например, задайте CPC + бюджет → получите объём трафика."
@@ -218,44 +222,85 @@ with tab1:
     )
 
     col_a, col_b, col_c = st.columns(3)
-    default_cpc, default_clicks, default_budget = 30.0, 10_000, 300_000.0
+    default_cpc    = st.session_state.get("cpc_raw", 30.0)
+    default_clicks = st.session_state.get("clicks_raw", 10_000)
+    default_budget = st.session_state.get("budget_raw", 300_000.0)
 
     with col_a:
-        cpc = st.number_input(
-            "💸 Стоимость клика, ₽ (CPC)",
-            min_value=0.01, value=default_cpc, step=0.5,
-            disabled=(calc_mode == "Стоимость клика (CPC)"),
-            help="Средняя цена клика из Яндекс.Директ или другого источника. Включая НДС."
-        )
+        if calc_mode == "Стоимость клика (CPC)":
+            # Вычислим после чтения активных полей — временная заглушка
+            cpc_raw = default_cpc
+        else:
+            cpc_raw = st.number_input(
+                "💸 Стоимость клика, ₽ (CPC)",
+                min_value=0.01,
+                value=float(st.session_state.get("cpc_raw", 30.0)),
+                step=0.5, key="cpc_raw",
+                help="Средняя цена клика из Яндекс.Директ или другого источника. Включая НДС."
+            )
     with col_b:
-        clicks_input = st.number_input(
-            "🖱️ Количество переходов",
-            min_value=1, value=default_clicks, step=500,
-            disabled=(calc_mode == "Количество переходов"),
-            help="Плановое/фактическое число кликов по объявлениям Sleepsy за расчётный период."
-        )
+        if calc_mode == "Количество переходов":
+            clicks_raw = default_clicks
+        else:
+            clicks_raw = st.number_input(
+                "🖱️ Количество переходов",
+                min_value=1,
+                value=int(st.session_state.get("clicks_raw", 10_000)),
+                step=500, key="clicks_raw",
+                help="Плановое/фактическое число кликов по объявлениям Sleepsy за расчётный период."
+            )
     with col_c:
-        budget_input = st.number_input(
-            "💰 Рекламный бюджет, ₽",
-            min_value=0.0, value=float(default_budget), step=5_000.0,
-            disabled=(calc_mode == "Лимит бюджета"),
-            help="Совокупный бюджет на рекламу (Директ, VK Ads, Telegram Ads и т.д.)."
-        )
+        if calc_mode == "Лимит бюджета":
+            budget_raw = default_budget
+        else:
+            budget_raw = st.number_input(
+                "💰 Рекламный бюджет, ₽",
+                min_value=0.0,
+                value=float(st.session_state.get("budget_raw", 300_000.0)),
+                step=5_000.0, key="budget_raw",
+                help="Совокупный бюджет на рекламу (Директ, VK Ads, Telegram Ads и т.д.)."
+            )
 
     # ── Взаимозависимый пересчёт ──────────────────
+    # Порядок: сначала читаем активные поля, потом вычисляем заблокированное
     if calc_mode == "Количество переходов":
-        actual_clicks = int(budget_input / cpc) if cpc > 0 and budget_input > 0 else clicks_input
-        actual_cpc = cpc
-        actual_budget = actual_clicks * actual_cpc
+        actual_cpc    = cpc_raw
+        actual_budget = budget_raw
+        actual_clicks = int(actual_budget / actual_cpc) if actual_cpc > 0 else 0
+        # Теперь рисуем задизейбленный инпут с вычисленным значением
+        with col_b:
+            st.number_input(
+                "🖱️ Количество переходов",
+                value=actual_clicks, min_value=0, step=500,
+                disabled=True,
+                key="_clicks_disp",
+                help="Рассчитывается автоматически из бюджета и CPC."
+            )
     elif calc_mode == "Стоимость клика (CPC)":
-        actual_cpc = (budget_input / clicks_input
-                      if clicks_input > 0 and budget_input > 0 else cpc)
-        actual_clicks = clicks_input
-        actual_budget = actual_clicks * actual_cpc
+        actual_clicks = clicks_raw
+        actual_budget = budget_raw
+        actual_cpc    = (actual_budget / actual_clicks
+                         if actual_clicks > 0 else 0.0)
+        with col_a:
+            st.number_input(
+                "💸 Стоимость клика, ₽ (CPC)",
+                value=round(actual_cpc, 2), min_value=0.0, step=0.5,
+                disabled=True,
+                key="_cpc_disp",
+                help="Рассчитывается автоматически из бюджета и кликов."
+            )
     else:   # Лимит бюджета
-        actual_budget = cpc * clicks_input
-        actual_cpc = cpc
-        actual_clicks = clicks_input
+        actual_cpc    = cpc_raw
+        actual_clicks = clicks_raw
+        actual_budget = actual_cpc * actual_clicks
+        with col_c:
+            st.number_input(
+                "💰 Рекламный бюджет, ₽",
+                value=round(actual_budget, 2), min_value=0.0, step=5_000.0,
+                disabled=True,
+                key="_budget_disp",
+                help="Рассчитывается автоматически из CPC и кликов."
+            )
 
     info_box(
         f"📊 Итог: <strong>{actual_clicks:,} переходов</strong> "
@@ -282,7 +327,9 @@ with tab2:
     with col1:
         conv_quiz = st.slider(
             "📋 Доля завершивших квиз (лиды), %",
-            0.0, 100.0, 35.0, 0.5,
+            0.0, 100.0,
+            float(st.session_state.get("conv_quiz_pct", 35.0)),
+            0.5, key="conv_quiz_pct",
             help=(
                 "% посетителей, которые прошли квиз до конца и оставили контакт/инвестировали время. "
                 "Benchmark квиз-воронок: 25–45%. Для Яндекс.Директ ожидайте 20–35%."
@@ -291,7 +338,9 @@ with tab2:
     with col2:
         conv_purchase = st.slider(
             "🌙 Конверсия в покупку разбора, %",
-            0.0, 100.0, 18.0, 0.5,
+            0.0, 100.0,
+            float(st.session_state.get("conv_purchase_pct", 18.0)),
+            0.5, key="conv_purchase_pct",
             help=(
                 "% прошедших квиз, совершивших покупку полного анализа сна. "
                 "При цене 149 ₽ и высокой вовлечённости benchmark: 12–25%."
@@ -305,13 +354,17 @@ with tab2:
     with col3:
         price_one_time = st.number_input(
             "💜 Цена полного разбора сна, ₽",
-            min_value=0.0, value=149.0, step=10.0,
+            min_value=0.0,
+            value=float(st.session_state.get("price_one_time", 149.0)),
+            step=10.0, key="price_one_time",
             help="Публичная цена одного AI-анализа. По умолчанию 149 ₽ — стандарт Sleepsy."
         )
     with col4:
         cogs_one_time = st.number_input(
             "🤖 Себестоимость разбора (AI-токены + инфра), ₽",
-            min_value=0.0, value=12.0, step=1.0,
+            min_value=0.0,
+            value=float(st.session_state.get("cogs_one_time", 12.0)),
+            step=1.0, key="cogs_one_time",
             help=(
                 "Прямые затраты на один разбор: токены LLM (Claude/GPT), "
                 "хостинг, поддержка, налоги. Ориентир: 8–20 ₽."
@@ -323,7 +376,9 @@ with tab2:
 
     email_monet = st.number_input(
         "📨 Доход с лида без покупки, ₽",
-        min_value=0.0, value=5.0, step=0.5,
+        min_value=0.0,
+        value=float(st.session_state.get("email_monet", 5.0)),
+        step=0.5, key="email_monet",
         help=(
             "Средний доход с пользователя, прошедшего квиз, но НЕ купившего разбор. "
             "Включает: email-последовательности с повторными офферами, PDF-бонус, "
@@ -347,17 +402,17 @@ with tab3:
     # Тарифы с названиями в стиле Sleepsy
     TARIFF_META = [
         {
-            "name": "🌙 Лунный (Базовый)",
+            "name": "🌙 Базовый",
             "desc": "Ограниченные разборы в месяц, базовая аналитика",
             "conv": 15.0, "price": 299.0, "renew": 80.0, "dur": 5.0, "cogs": 20.0
         },
         {
-            "name": "⭐ Юнгианский (Стандарт)",
+            "name": "⭐ Стандарт",
             "desc": "Неограниченные разборы, 6 методологий психоанализа",
             "conv": 7.0, "price": 599.0, "renew": 87.0, "dur": 7.7, "cogs": 40.0
         },
         {
-            "name": "🔮 Психоаналитик (Премиум)",
+            "name": "🔮 Премиум",
             "desc": "Полный доступ: психо + эзотерический трек + PDF-бонусы",
             "conv": 3.0, "price": 999.0, "renew": 93.0, "dur": 14.3, "cogs": 70.0
         }
@@ -370,29 +425,32 @@ with tab3:
             with col_t1:
                 conv = st.number_input(
                     "Конверсия в тариф, %", key=f"conv_{idx}",
-                    value=meta["conv"], min_value=0.0, max_value=100.0, step=0.5,
+                    value=float(st.session_state.get(f"conv_{idx}", meta["conv"])),
+                    min_value=0.0, max_value=100.0, step=0.5,
                     help="% разовых покупателей, оформивших именно этот тариф."
                 ) / 100.0
             with col_t2:
                 price = st.number_input(
                     "Цена в месяц, ₽", key=f"price_{idx}",
-                    value=meta["price"], min_value=0.0, step=10.0,
+                    value=float(st.session_state.get(f"price_{idx}", meta["price"])),
+                    min_value=0.0, step=10.0,
                     help="Ежемесячный платёж за подписку."
                 )
             with col_t3:
                 renew = st.number_input(
                     "Ретеншн (продление), %", key=f"renew_{idx}",
-                    value=meta["renew"], min_value=0.0, max_value=99.9, step=1.0,
+                    value=float(st.session_state.get(f"renew_{idx}", meta["renew"])),
+                    min_value=0.0, max_value=99.9, step=1.0,
                     help="Вероятность продления подписки на следующий месяц."
                 ) / 100.0
 
             col_d1, col_d2 = st.columns(2)
             with col_d1:
-                # Показываем теоретический срок жизни как подсказку
                 theory_life = round(1 / (1 - renew), 1) if renew < 1 else 999.0
                 duration = st.number_input(
                     "Ожидаемый срок подписки, мес", key=f"dur_{idx}",
-                    value=float(meta["dur"]), min_value=0.1, step=0.1,
+                    value=float(st.session_state.get(f"dur_{idx}", meta["dur"])),
+                    min_value=0.1, step=0.1,
                     help=(
                         f"Средний срок жизни подписки. "
                         f"При ретеншне {renew*100:.0f}% теоретический LT = 1/(1−r) = {theory_life} мес. "
@@ -402,7 +460,8 @@ with tab3:
             with col_d2:
                 cogs = st.number_input(
                     "Себестоимость в месяц, ₽", key=f"cogs_{idx}",
-                    value=float(meta["cogs"]), min_value=0.0, step=5.0,
+                    value=float(st.session_state.get(f"cogs_{idx}", meta["cogs"])),
+                    min_value=0.0, step=5.0,
                     help="Затраты на обслуживание одного подписчика в месяц: AI-токены, хостинг, поддержка."
                 )
 
@@ -423,7 +482,9 @@ with tab4:
     with col_s1:
         payment_fee = st.slider(
             "💳 Комиссия платёжной системы, %",
-            0.0, 10.0, 3.5, 0.1,
+            0.0, 10.0,
+            float(st.session_state.get("payment_fee_pct", 3.5)),
+            0.1, key="payment_fee_pct",
             help=(
                 "Комиссия YooMoney/Lava — основных платёжных систем Sleepsy. "
                 "YooMoney: ~3.5%, Lava: ~3.0%. "
@@ -433,7 +494,9 @@ with tab4:
     with col_s2:
         refund_rate = st.slider(
             "↩️ Возвраты и чарджбэки, %",
-            0.0, 20.0, 1.0, 0.1,
+            0.0, 20.0,
+            float(st.session_state.get("refund_rate_pct", 1.0)),
+            0.1, key="refund_rate_pct",
             help=(
                 "% платежей с возвратом или оспариванием. "
                 "Для цифровых продуктов до 149 ₽ ожидайте 0.5–1.5%."
@@ -452,6 +515,123 @@ with tab4:
         "&nbsp;|&nbsp; "
         "<strong>Окупаемость CAC</strong> = CAC / Месячная маржа подписки"
     )
+
+    st.divider()
+    section("💾", "Профили настроек")
+
+    PROFILES_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sleepsy_profiles.json")
+
+    def load_profiles() -> dict:
+        if os.path.exists(PROFILES_FILE):
+            try:
+                with open(PROFILES_FILE, "r", encoding="utf-8") as f:
+                    return json.load(f).get("profiles", {})
+            except Exception:
+                return {}
+        return {}
+
+    def save_profiles(profiles: dict):
+        with open(PROFILES_FILE, "w", encoding="utf-8") as f:
+            json.dump({"profiles": profiles}, f, ensure_ascii=False, indent=2)
+
+    profiles = load_profiles()
+
+    # ── Сохранение ────────────────────────────────
+    pf_col1, pf_col2 = st.columns([3, 1])
+    with pf_col1:
+        profile_name = st.text_input(
+            "Имя профиля", value="Базовый сценарий",
+            placeholder="Например: Агрессивный рост", key="_pf_name"
+        )
+    with pf_col2:
+        st.markdown("<div style='margin-top:1.8rem'></div>", unsafe_allow_html=True)
+        if st.button("💾 Сохранить", use_container_width=True):
+            if profile_name.strip():
+                tariff_data = []
+                for idx in range(3):
+                    tariff_data.append({
+                        "conv":  st.session_state.get(f"conv_{idx}", [15.0, 7.0, 3.0][idx]),
+                        "price": st.session_state.get(f"price_{idx}", [299.0, 599.0, 999.0][idx]),
+                        "renew": st.session_state.get(f"renew_{idx}", [80.0, 87.0, 93.0][idx]),
+                        "dur":   st.session_state.get(f"dur_{idx}", [5.0, 7.7, 14.3][idx]),
+                        "cogs":  st.session_state.get(f"cogs_{idx}", [20.0, 40.0, 70.0][idx]),
+                    })
+                profiles[profile_name.strip()] = {
+                    "saved_at": datetime.now().isoformat(timespec="seconds"),
+                    "traffic": {
+                        "cpc":       st.session_state.get("cpc_raw", 30.0),
+                        "clicks":    st.session_state.get("clicks_raw", 10000),
+                        "budget":    st.session_state.get("budget_raw", 300000.0),
+                        "calc_mode": st.session_state.get("calc_mode", "Количество переходов"),
+                    },
+                    "quiz": {
+                        "conv_quiz":      st.session_state.get("conv_quiz_pct", 35.0),
+                        "conv_purchase":  st.session_state.get("conv_purchase_pct", 18.0),
+                        "price_one_time": st.session_state.get("price_one_time", 149.0),
+                        "cogs_one_time":  st.session_state.get("cogs_one_time", 12.0),
+                        "email_monet":    st.session_state.get("email_monet", 5.0),
+                    },
+                    "params": {
+                        "payment_fee": st.session_state.get("payment_fee_pct", 3.5),
+                        "refund_rate": st.session_state.get("refund_rate_pct", 1.0),
+                    },
+                    "tariffs": tariff_data,
+                }
+                save_profiles(profiles)
+                st.success(f"✅ Профиль «{profile_name.strip()}» сохранён!")
+
+    # ── Загрузка / удаление ───────────────────────
+    if profiles:
+        st.markdown("<div style='margin-top:.5rem'></div>", unsafe_allow_html=True)
+        ld_col1, ld_col2, ld_col3 = st.columns([3, 1, 1])
+        with ld_col1:
+            selected_profile = st.selectbox(
+                "Загрузить профиль", options=list(profiles.keys()), key="_pf_select"
+            )
+        with ld_col2:
+            st.markdown("<div style='margin-top:1.8rem'></div>", unsafe_allow_html=True)
+            if st.button("📂 Загрузить", use_container_width=True):
+                pdata = profiles[selected_profile]
+                # Трафик
+                t = pdata.get("traffic", {})
+                st.session_state["calc_mode"]  = t.get("calc_mode", "Количество переходов")
+                st.session_state["cpc_raw"]    = float(t.get("cpc", 30.0))
+                st.session_state["clicks_raw"] = int(t.get("clicks", 10000))
+                st.session_state["budget_raw"] = float(t.get("budget", 300000.0))
+                # Квиз
+                q = pdata.get("quiz", {})
+                st.session_state["conv_quiz_pct"]     = float(q.get("conv_quiz", 35.0))
+                st.session_state["conv_purchase_pct"] = float(q.get("conv_purchase", 18.0))
+                st.session_state["price_one_time"]    = float(q.get("price_one_time", 149.0))
+                st.session_state["cogs_one_time"]     = float(q.get("cogs_one_time", 12.0))
+                st.session_state["email_monet"]       = float(q.get("email_monet", 5.0))
+                # Параметры
+                p = pdata.get("params", {})
+                st.session_state["payment_fee_pct"] = float(p.get("payment_fee", 3.5))
+                st.session_state["refund_rate_pct"] = float(p.get("refund_rate", 1.0))
+                # Тарифы
+                for idx, td in enumerate(pdata.get("tariffs", [])):
+                    st.session_state[f"conv_{idx}"]  = float(td.get("conv", [15.0, 7.0, 3.0][idx]))
+                    st.session_state[f"price_{idx}"] = float(td.get("price", [299.0, 599.0, 999.0][idx]))
+                    st.session_state[f"renew_{idx}"] = float(td.get("renew", [80.0, 87.0, 93.0][idx]))
+                    st.session_state[f"dur_{idx}"]   = float(td.get("dur", [5.0, 7.7, 14.3][idx]))
+                    st.session_state[f"cogs_{idx}"]  = float(td.get("cogs", [20.0, 40.0, 70.0][idx]))
+                st.success(f"✅ Загружен профиль «{selected_profile}»")
+                st.rerun()
+        with ld_col3:
+            st.markdown("<div style='margin-top:1.8rem'></div>", unsafe_allow_html=True)
+            if st.button("🗑️ Удалить", use_container_width=True):
+                del profiles[selected_profile]
+                save_profiles(profiles)
+                st.success(f"Профиль «{selected_profile}» удалён")
+                st.rerun()
+
+        # Дата сохранения
+        saved_at = profiles.get(selected_profile, {}).get("saved_at", "")
+        if saved_at:
+            st.caption(f"🕐 Сохранён: {saved_at}")
+    else:
+        st.info("Нет сохранённых профилей. Введите имя выше и нажмите «Сохранить».")
 
 
 # ═══════════════════════════════════════════════════
@@ -538,6 +718,35 @@ def calculate_metrics():
     margin = (gross_profit / total_revenue * 100) if total_revenue > 0 else 0
     cpl    = ad_spend / leads if leads > 0 else 0
 
+    # ── Помесячная выручка (12 мес.) ─────────────
+    # Месяц 1: разборы + email + первые платежи подписок
+    # Месяц 2–12: только продления (с учётом ретеншна)
+    N_MONTHS = 12
+    monthly_breakdown = []
+    for m in range(1, N_MONTHS + 1):
+        if m == 1:
+            rev_ot_m    = gross_ot
+            rev_email_m = email_rev
+            rev_subs_m  = sum(
+                int(one_time_buys * t["conv"]) * t["price"]
+                for t in tariffs
+            )
+        else:
+            rev_ot_m    = 0.0
+            rev_email_m = 0.0
+            rev_subs_m  = sum(
+                int(one_time_buys * t["conv"]) * t["price"] * (t["renew"] ** (m - 1))
+                for t in tariffs
+            )
+        monthly_breakdown.append({
+            "Месяц": m,
+            "Разборы": rev_ot_m,
+            "Подписки": rev_subs_m,
+            "Email": rev_email_m,
+            "Итого": rev_ot_m + rev_subs_m + rev_email_m,
+        })
+    monthly_df = pd.DataFrame(monthly_breakdown)
+
     # ── Данные для графиков ───────────────────────
     pnl_df = pd.DataFrame({
         "Статья": [
@@ -578,8 +787,9 @@ def calculate_metrics():
             "cac":           cac_per_purchase,
             "ltv":           weighted_ltv
         },
-        "subs":   pd.DataFrame(subs_rows),
-        "charts": {"pnl": pnl_df, "funnel": funnel_df}
+        "subs":    pd.DataFrame(subs_rows),
+        "monthly": monthly_df,
+        "charts":  {"pnl": pnl_df, "funnel": funnel_df}
     }
 
 
@@ -661,7 +871,9 @@ with row2[2]:
 #  АНАЛИТИКА — вложенные вкладки
 # ═══════════════════════════════════════════════════
 st.divider()
-tab_c1, tab_c2, tab_c3 = st.tabs(["📊  P&L структура", "🔽  Воронка", "🔬  Сценарии"])
+tab_c1, tab_c2, tab_c3, tab_c4 = st.tabs(
+    ["📊  P&L структура", "🔽  Воронка", "📅  Помесячно", "🔬  Сценарии"]
+)
 
 # ── P&L ───────────────────────────────────────────
 with tab_c1:
@@ -698,6 +910,7 @@ with tab_c1:
 
 
 # ── Воронка ───────────────────────────────────────
+
 with tab_c2:
     funnel_df = res["charts"]["funnel"]
     fig_fun = go.Figure(go.Funnel(
@@ -722,8 +935,44 @@ with tab_c2:
     st.plotly_chart(fig_fun, use_container_width=True)
 
 
-# ── Сценарии ──────────────────────────────────────
+# ── Помесячная динамика ────────────────────────────
 with tab_c3:
+    monthly_df = res["monthly"]
+    fig_month = go.Figure()
+    fig_month.add_trace(go.Bar(
+        x=monthly_df["Месяц"], y=monthly_df["Подписки"],
+        name="Подписки", marker_color="#818cf8"
+    ))
+    fig_month.add_trace(go.Bar(
+        x=monthly_df["Месяц"], y=monthly_df["Разборы"],
+        name="Разборы", marker_color="#a78bfa"
+    ))
+    fig_month.add_trace(go.Bar(
+        x=monthly_df["Месяц"], y=monthly_df["Email"],
+        name="Email-монет.", marker_color="#f472b6"
+    ))
+    fig_month.update_layout(
+        barmode="stack", height=360,
+        title="📅 Динамика выручки по месяцам, ₽",
+        title_font=dict(size=14, family="DM Sans"),
+        xaxis=dict(title="Месяц", tickmode="linear", tick0=1, dtick=1, color="#c4b5fd"),
+        yaxis=dict(title="Выручка, ₽", color="#c4b5fd"),
+        plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
+        font_color="#c4b5fd", font_family="DM Sans",
+        legend=dict(orientation="h", y=1.12, x=0),
+        margin=dict(t=55, b=20, l=10, r=10),
+    )
+    fig_month.update_traces(marker_line_width=0)
+    st.plotly_chart(fig_month, use_container_width=True)
+
+    disp_df = monthly_df.copy()
+    for col in ["Разборы", "Подписки", "Email", "Итого"]:
+        disp_df[col] = disp_df[col].map(lambda x: f"{x:,.0f} ₽")
+    st.dataframe(disp_df, use_container_width=True, hide_index=True)
+
+
+# ── Сценарии ──────────────────────────────────────
+with tab_c4:
     st.markdown(
         '<p style="font-family:Syne,sans-serif;font-size:1rem;font-weight:700;'
         'color:#a78bfa;margin-bottom:.5rem">🔬 Анализ чувствительности</p>',

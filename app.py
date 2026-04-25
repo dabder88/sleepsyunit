@@ -267,13 +267,12 @@ with tab1:
         actual_cpc    = cpc_raw
         actual_budget = budget_raw
         actual_clicks = int(actual_budget / actual_cpc) if actual_cpc > 0 else 0
-        # Теперь рисуем задизейбленный инпут с вычисленным значением
+        # Без key= — Streamlit читает value= при каждом рендере (не кеширует)
         with col_b:
             st.number_input(
                 "🖱️ Количество переходов",
                 value=actual_clicks, min_value=0, step=500,
                 disabled=True,
-                key="_clicks_disp",
                 help="Рассчитывается автоматически из бюджета и CPC."
             )
     elif calc_mode == "Стоимость клика (CPC)":
@@ -286,7 +285,6 @@ with tab1:
                 "💸 Стоимость клика, ₽ (CPC)",
                 value=round(actual_cpc, 2), min_value=0.0, step=0.5,
                 disabled=True,
-                key="_cpc_disp",
                 help="Рассчитывается автоматически из бюджета и кликов."
             )
     else:   # Лимит бюджета
@@ -298,7 +296,6 @@ with tab1:
                 "💰 Рекламный бюджет, ₽",
                 value=round(actual_budget, 2), min_value=0.0, step=5_000.0,
                 disabled=True,
-                key="_budget_disp",
                 help="Рассчитывается автоматически из CPC и кликов."
             )
 
@@ -547,35 +544,34 @@ with tab4:
         st.markdown("<div style='margin-top:1.8rem'></div>", unsafe_allow_html=True)
         if st.button("💾 Сохранить", use_container_width=True):
             if profile_name.strip():
-                tariff_data = []
-                for idx in range(3):
-                    tariff_data.append({
-                        "conv":  st.session_state.get(f"conv_{idx}", [15.0, 7.0, 3.0][idx]),
-                        "price": st.session_state.get(f"price_{idx}", [299.0, 599.0, 999.0][idx]),
-                        "renew": st.session_state.get(f"renew_{idx}", [80.0, 87.0, 93.0][idx]),
-                        "dur":   st.session_state.get(f"dur_{idx}", [5.0, 7.7, 14.3][idx]),
-                        "cogs":  st.session_state.get(f"cogs_{idx}", [20.0, 40.0, 70.0][idx]),
-                    })
                 profiles[profile_name.strip()] = {
                     "saved_at": datetime.now().isoformat(timespec="seconds"),
                     "traffic": {
-                        "cpc":       st.session_state.get("cpc_raw", 30.0),
-                        "clicks":    st.session_state.get("clicks_raw", 10000),
-                        "budget":    st.session_state.get("budget_raw", 300000.0),
-                        "calc_mode": st.session_state.get("calc_mode", "Количество переходов"),
+                        "calc_mode": calc_mode,
+                        "cpc":       actual_cpc,
+                        "clicks":    actual_clicks,
+                        "budget":    actual_budget,
                     },
                     "quiz": {
-                        "conv_quiz":      st.session_state.get("conv_quiz_pct", 35.0),
-                        "conv_purchase":  st.session_state.get("conv_purchase_pct", 18.0),
-                        "price_one_time": st.session_state.get("price_one_time", 149.0),
-                        "cogs_one_time":  st.session_state.get("cogs_one_time", 12.0),
-                        "email_monet":    st.session_state.get("email_monet", 5.0),
+                        "conv_quiz":      round(conv_quiz * 100.0, 2),
+                        "conv_purchase":  round(conv_purchase * 100.0, 2),
+                        "price_one_time": price_one_time,
+                        "cogs_one_time":  cogs_one_time,
+                        "email_monet":    email_monet,
                     },
                     "params": {
-                        "payment_fee": st.session_state.get("payment_fee_pct", 3.5),
-                        "refund_rate": st.session_state.get("refund_rate_pct", 1.0),
+                        "payment_fee": round(payment_fee * 100.0, 2),
+                        "refund_rate": round(refund_rate * 100.0, 2),
                     },
-                    "tariffs": tariff_data,
+                    "tariffs": [
+                        {
+                            "conv":  round(t["conv"] * 100.0, 2),
+                            "price": t["price"],
+                            "renew": round(t["renew"] * 100.0, 2),
+                            "dur":   t["dur"],
+                            "cogs":  t["cogs"],
+                        } for t in tariffs
+                    ],
                 }
                 save_profiles(profiles)
                 st.success(f"✅ Профиль «{profile_name.strip()}» сохранён!")
@@ -590,34 +586,36 @@ with tab4:
             )
         with ld_col2:
             st.markdown("<div style='margin-top:1.8rem'></div>", unsafe_allow_html=True)
-            if st.button("📂 Загрузить", use_container_width=True):
-                pdata = profiles[selected_profile]
-                # Трафик
+            
+            def apply_profile(prof_name):
+                pdata = profiles.get(prof_name)
+                if not pdata: return
                 t = pdata.get("traffic", {})
                 st.session_state["calc_mode"]  = t.get("calc_mode", "Количество переходов")
                 st.session_state["cpc_raw"]    = float(t.get("cpc", 30.0))
                 st.session_state["clicks_raw"] = int(t.get("clicks", 10000))
                 st.session_state["budget_raw"] = float(t.get("budget", 300000.0))
-                # Квиз
+                
                 q = pdata.get("quiz", {})
                 st.session_state["conv_quiz_pct"]     = float(q.get("conv_quiz", 35.0))
                 st.session_state["conv_purchase_pct"] = float(q.get("conv_purchase", 18.0))
                 st.session_state["price_one_time"]    = float(q.get("price_one_time", 149.0))
                 st.session_state["cogs_one_time"]     = float(q.get("cogs_one_time", 12.0))
                 st.session_state["email_monet"]       = float(q.get("email_monet", 5.0))
-                # Параметры
+                
                 p = pdata.get("params", {})
                 st.session_state["payment_fee_pct"] = float(p.get("payment_fee", 3.5))
                 st.session_state["refund_rate_pct"] = float(p.get("refund_rate", 1.0))
-                # Тарифы
+                
                 for idx, td in enumerate(pdata.get("tariffs", [])):
                     st.session_state[f"conv_{idx}"]  = float(td.get("conv", [15.0, 7.0, 3.0][idx]))
                     st.session_state[f"price_{idx}"] = float(td.get("price", [299.0, 599.0, 999.0][idx]))
                     st.session_state[f"renew_{idx}"] = float(td.get("renew", [80.0, 87.0, 93.0][idx]))
                     st.session_state[f"dur_{idx}"]   = float(td.get("dur", [5.0, 7.7, 14.3][idx]))
                     st.session_state[f"cogs_{idx}"]  = float(td.get("cogs", [20.0, 40.0, 70.0][idx]))
+
+            if st.button("📂 Загрузить", use_container_width=True, on_click=apply_profile, args=(selected_profile,)):
                 st.success(f"✅ Загружен профиль «{selected_profile}»")
-                st.rerun()
         with ld_col3:
             st.markdown("<div style='margin-top:1.8rem'></div>", unsafe_allow_html=True)
             if st.button("🗑️ Удалить", use_container_width=True):
@@ -645,8 +643,8 @@ def calculate_metrics():
     ad_spend = actual_clicks * actual_cpc
 
     # ── Воронка ───────────────────────────────────
-    leads             = int(actual_clicks * conv_quiz)
-    one_time_buys     = int(leads * conv_purchase)
+    leads             = actual_clicks * conv_quiz
+    one_time_buys     = leads * conv_purchase
 
     # ── Разовые разборы ───────────────────────────
     gross_ot    = one_time_buys * price_one_time
@@ -662,7 +660,7 @@ def calculate_metrics():
     cac_per_purchase = ad_spend / one_time_buys if one_time_buys > 0 else 0
 
     for i, t in enumerate(tariffs):
-        count    = int(one_time_buys * t["conv"])
+        count    = one_time_buys * t["conv"]
         # FIX: используем заданный срок напрямую,
         #      а не обрезанный геометрический ряд
         exp_m    = t["dur"]
@@ -721,30 +719,42 @@ def calculate_metrics():
     # ── Помесячная выручка (12 мес.) ─────────────
     # Месяц 1: разборы + email + первые платежи подписок
     # Месяц 2–12: только продления (с учётом ретеншна)
+    # ── Помесячная выручка и прибыль (12 мес.) ───
     N_MONTHS = 12
     monthly_breakdown = []
     for m in range(1, N_MONTHS + 1):
-        if m == 1:
-            rev_ot_m    = gross_ot
-            rev_email_m = email_rev
-            rev_subs_m  = sum(
-                int(one_time_buys * t["conv"]) * t["price"]
-                for t in tariffs
-            )
-        else:
-            rev_ot_m    = 0.0
-            rev_email_m = 0.0
-            rev_subs_m  = sum(
-                int(one_time_buys * t["conv"]) * t["price"] * (t["renew"] ** (m - 1))
-                for t in tariffs
-            )
-        monthly_breakdown.append({
-            "Месяц": m,
-            "Разборы": rev_ot_m,
-            "Подписки": rev_subs_m,
-            "Email": rev_email_m,
-            "Итого": rev_ot_m + rev_subs_m + rev_email_m,
-        })
+        month_data = {"Месяц": m}
+        
+        # Разборы и Email (только 1-й месяц)
+        rev_ot_m    = gross_ot if m == 1 else 0.0
+        rev_email_m = email_rev if m == 1 else 0.0
+        
+        # Расходы 1-го месяца
+        ad_spend_m   = ad_spend if m == 1 else 0.0
+        cogs_ot_m    = cogs_ot if m == 1 else 0.0
+        fees_ot_m    = fees_ot if m == 1 else 0.0
+        refunds_ot_m = refunds_ot if m == 1 else 0.0
+        
+        # Подписки (по каждому тарифу)
+        rev_subs_m = 0.0
+        cogs_subs_m = 0.0
+        for t in tariffs:
+            active_subs = (one_time_buys * t["conv"]) * (t["renew"] ** (m - 1))
+            month_data[f'Подписки {t["name"]}'] = active_subs
+            rev_subs_m += active_subs * t["price"]
+            cogs_subs_m += active_subs * t["cogs"]
+            
+        fees_subs_m = rev_subs_m * payment_fee
+        refunds_subs_m = rev_subs_m * refund_rate
+        
+        total_rev_m = rev_ot_m + rev_email_m + rev_subs_m
+        total_costs_m = ad_spend_m + cogs_ot_m + fees_ot_m + refunds_ot_m + cogs_subs_m + fees_subs_m + refunds_subs_m
+        
+        month_data["Выручка"] = total_rev_m
+        month_data["Прибыль"] = total_rev_m - total_costs_m
+        
+        monthly_breakdown.append(month_data)
+
     monthly_df = pd.DataFrame(monthly_breakdown)
 
     # ── Данные для графиков ───────────────────────
@@ -889,6 +899,7 @@ with tab_c1:
         title="Структура доходов и расходов, ₽"
     )
     fig_pnl.update_layout(
+        separators=", ",
         showlegend=True,
         legend_title_text="",
         plot_bgcolor  ="rgba(0,0,0,0)",
@@ -898,7 +909,12 @@ with tab_c1:
         margin        =dict(t=40, b=20, l=10, r=10),
         bargap        =0.25,
     )
-    fig_pnl.update_traces(marker_line_width=0, textfont_color="#fff")
+    fig_pnl.update_traces(
+        marker_line_width=0, 
+        textfont_color="#fff",
+        texttemplate="%{y:,.2f} руб.",
+        hovertemplate="%{y:,.2f} руб.<extra>%{x}</extra>"
+    )
     st.plotly_chart(fig_pnl, use_container_width=True)
 
     st.markdown(
@@ -925,6 +941,7 @@ with tab_c2:
         connector=dict(line=dict(color="rgba(167,139,250,0.25)", width=2))
     ))
     fig_fun.update_layout(
+        separators=", ",
         height=350,
         plot_bgcolor ="rgba(0,0,0,0)",
         paper_bgcolor="rgba(0,0,0,0)",
@@ -938,36 +955,69 @@ with tab_c2:
 # ── Помесячная динамика ────────────────────────────
 with tab_c3:
     monthly_df = res["monthly"]
+    
+    # 1. График Выручки и Прибыли
     fig_month = go.Figure()
     fig_month.add_trace(go.Bar(
-        x=monthly_df["Месяц"], y=monthly_df["Подписки"],
-        name="Подписки", marker_color="#818cf8"
+        x=monthly_df["Месяц"], y=monthly_df["Выручка"],
+        name="Выручка", marker_color="#818cf8"
     ))
     fig_month.add_trace(go.Bar(
-        x=monthly_df["Месяц"], y=monthly_df["Разборы"],
-        name="Разборы", marker_color="#a78bfa"
-    ))
-    fig_month.add_trace(go.Bar(
-        x=monthly_df["Месяц"], y=monthly_df["Email"],
-        name="Email-монет.", marker_color="#f472b6"
+        x=monthly_df["Месяц"], y=monthly_df["Прибыль"],
+        name="Прибыль", marker_color="#f472b6"
     ))
     fig_month.update_layout(
-        barmode="stack", height=360,
-        title="📅 Динамика выручки по месяцам, ₽",
+        separators=", ",
+        barmode="group", height=320,
+        title="📅 Выручка и Прибыль по месяцам, руб.",
         title_font=dict(size=14, family="DM Sans"),
         xaxis=dict(title="Месяц", tickmode="linear", tick0=1, dtick=1, color="#c4b5fd"),
-        yaxis=dict(title="Выручка, ₽", color="#c4b5fd"),
+        yaxis=dict(title="Сумма, руб.", color="#c4b5fd"),
         plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
         font_color="#c4b5fd", font_family="DM Sans",
         legend=dict(orientation="h", y=1.12, x=0),
         margin=dict(t=55, b=20, l=10, r=10),
     )
-    fig_month.update_traces(marker_line_width=0)
+    fig_month.update_traces(marker_line_width=0, hovertemplate="%{y:,.2f} руб.<extra>%{name}</extra>")
     st.plotly_chart(fig_month, use_container_width=True)
 
+    # 2. График активных подписок
+    sub_cols = [c for c in monthly_df.columns if c.startswith("Подписки")]
+    colors = ["#a78bfa", "#6366f1", "#f472b6", "#34d399"]
+    fig_subs = go.Figure()
+    for idx, col in enumerate(sub_cols):
+        fig_subs.add_trace(go.Scatter(
+            x=monthly_df["Месяц"], y=monthly_df[col],
+            mode="lines+markers", name=col.replace("Подписки ", ""),
+            line=dict(color=colors[idx % len(colors)], width=3),
+            marker=dict(size=8)
+        ))
+    fig_subs.update_layout(
+        separators=", ",
+        height=320,
+        title="🔄 Количество активных подписок",
+        title_font=dict(size=14, family="DM Sans"),
+        xaxis=dict(title="Месяц", tickmode="linear", tick0=1, dtick=1, color="#c4b5fd"),
+        yaxis=dict(title="Пользователи", color="#c4b5fd"),
+        plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
+        font_color="#c4b5fd", font_family="DM Sans",
+        legend=dict(orientation="h", y=1.12, x=0),
+        margin=dict(t=55, b=20, l=10, r=10),
+    )
+    fig_subs.update_traces(hovertemplate="%{y:,.1f} чел.<extra>%{name}</extra>")
+    st.plotly_chart(fig_subs, use_container_width=True)
+
+    # 3. Таблица
     disp_df = monthly_df.copy()
-    for col in ["Разборы", "Подписки", "Email", "Итого"]:
-        disp_df[col] = disp_df[col].map(lambda x: f"{x:,.0f} ₽")
+    disp_df["Выручка"] = disp_df["Выручка"].map(lambda x: f"{x:,.0f} ₽")
+    disp_df["Прибыль"] = disp_df["Прибыль"].map(lambda x: f"{x:,.0f} ₽")
+    for col in sub_cols:
+        disp_df[col] = disp_df[col].map(lambda x: f"{x:,.1f}")
+    
+    # Сортировка столбцов
+    cols_order = ["Месяц", "Выручка", "Прибыль"] + sub_cols
+    disp_df = disp_df[cols_order]
+    
     st.dataframe(disp_df, use_container_width=True, hide_index=True)
 
 
@@ -984,54 +1034,131 @@ with tab_c4:
         unsafe_allow_html=True
     )
 
+    section("🧪", "Конверсии воронки")
     sc1, sc2 = st.columns(2)
     with sc1:
         ce_t = st.slider(
             "Тест. доля завершивших квиз, %",
-            5.0, 70.0, conv_quiz * 100, 1.0
+            5.0, 70.0, float(conv_quiz * 100), 0.5
         ) / 100.0
     with sc2:
         cp_t = st.slider(
             "Тест. конверсия в покупку, %",
-            2.0, 50.0, conv_purchase * 100, 1.0
+            2.0, 50.0, float(conv_purchase * 100), 0.5
         ) / 100.0
 
-    test_leads = int(actual_clicks * ce_t)
-    test_purch = int(test_leads * cp_t)
+    section("🔄", "Конверсии подписок")
+    sc_cols = st.columns(len(tariffs))
+    test_conv_subs = []
+    for idx, t in enumerate(tariffs):
+        with sc_cols[idx]:
+            c_sub = st.slider(
+                f"Конв. в {t['name']}, %",
+                0.0, 50.0, float(t["conv"] * 100.0), 0.5
+            ) / 100.0
+            test_conv_subs.append(c_sub)
+
+    test_leads = actual_clicks * ce_t
+    test_purch = test_leads * cp_t
     test_cac   = actual_budget / test_purch if test_purch > 0 else 1e9
 
-    # LTV остаётся той же (конверсии в подписку не меняем в сценарии)
+    test_gross_ot = test_purch * price_one_time
+    test_cogs_ot  = test_purch * cogs_one_time
+    test_fees_ot  = test_gross_ot * payment_fee
+    test_refunds_ot = test_gross_ot * refund_rate
+    
+    test_subs_rev = 0
+    test_subs_cogs = 0
+    test_subs_rev_m1 = 0
+    test_subs_cogs_m1 = 0
+    
     test_ltv = (price_one_time - cogs_one_time) * (1 - refund_rate - payment_fee)
-    for t in tariffs:
-        exp_m    = t["dur"]   # FIX
+    
+    for idx, t in enumerate(tariffs):
+        exp_m    = t["dur"]
         net_sub  = (t["price"] - t["cogs"]) * exp_m * (1 - payment_fee - refund_rate)
-        test_ltv += net_sub * t["conv"]
+        test_ltv += net_sub * test_conv_subs[idx]
+        
+        test_subs_rev += test_purch * test_conv_subs[idx] * t["price"] * exp_m
+        test_subs_cogs += test_purch * test_conv_subs[idx] * t["cogs"] * exp_m
+        test_subs_rev_m1 += test_purch * test_conv_subs[idx] * t["price"]
+        test_subs_cogs_m1 += test_purch * test_conv_subs[idx] * t["cogs"]
+
+    test_subs_fees = test_subs_rev * payment_fee
+    test_subs_refunds = test_subs_rev * refund_rate
+    test_subs_fees_m1 = test_subs_rev_m1 * payment_fee
+    test_subs_refunds_m1 = test_subs_rev_m1 * refund_rate
 
     test_email_rev = (test_leads - test_purch) * email_monet
-    # FIX ROI: прибыль = LTV × покупателей + email_rev − бюджет
-    test_profit = test_purch * test_ltv + test_email_rev - actual_budget
-    test_roi    = (test_profit / actual_budget * 100) if actual_budget > 0 else 0
+    
+    test_total_revenue = test_gross_ot + test_subs_rev + test_email_rev
+    test_total_costs = test_cogs_ot + test_subs_cogs + actual_budget
+    test_all_fees = test_fees_ot + test_refunds_ot + test_subs_fees + test_subs_refunds
+    test_gross_profit = test_total_revenue - test_total_costs - test_all_fees
+    
+    test_rev_m1 = test_gross_ot + test_email_rev + test_subs_rev_m1
+    test_costs_m1 = actual_budget + test_cogs_ot + test_subs_cogs_m1
+    test_fees_m1 = test_fees_ot + test_refunds_ot + test_subs_fees_m1 + test_subs_refunds_m1
+    test_profit_m1 = test_rev_m1 - test_costs_m1 - test_fees_m1
+
+    test_roi    = (test_gross_profit / actual_budget * 100) if actual_budget > 0 else 0
     test_ltv_cac = test_ltv / test_cac if test_cac < 1e8 else 0
 
-    m1, m2, m3 = st.columns(3)
+    st.markdown("<div style='margin-top:1.5rem'></div>", unsafe_allow_html=True)
+    m1, m2, m3, m4 = st.columns(4)
+    
+    def format_diff(val, orig_val=None, suffix="", is_good_up=True):
+        sign = "+" if val > 0 else ""
+        color = "good" if (val > 0 and is_good_up) or (val < 0 and not is_good_up) else ("bad" if val != 0 else "")
+        
+        diff_str = f"{sign}{val:,.1f}".replace(",", " ") + suffix
+        if orig_val and orig_val != 0 and val != 0:
+            pct = (val / abs(orig_val)) * 100
+            diff_str += f" ({sign}{pct:.1f}%)"
+            
+        return diff_str, color
+
+    dr_rev = test_total_revenue - s['total_revenue']
+    df_rev, c_rev = format_diff(dr_rev, s['total_revenue'], " ₽")
+    
+    dr_prof = test_gross_profit - s['gross_profit']
+    df_prof, c_prof = format_diff(dr_prof, s['gross_profit'], " ₽")
+
+    orig_rev1 = res['monthly'].iloc[0]['Выручка']
+    dr_rev1 = test_rev_m1 - orig_rev1
+    df_rev1, c_rev1 = format_diff(dr_rev1, orig_rev1, " ₽")
+
+    orig_prof1 = res['monthly'].iloc[0]['Прибыль']
+    dr_prof1 = test_profit_m1 - orig_prof1
+    df_prof1, c_prof1 = format_diff(dr_prof1, orig_prof1, " ₽")
+
     with m1:
-        st.metric(
-            "Покупателей разборов",
-            f"{test_purch:,}",
-            delta=f"{test_purch - one_time_buys_calc:+,}"
-        )
+        st.markdown(metric_card("Общая выручка", f"{test_total_revenue:,.0f} ₽".replace(",", " "), df_rev, c_rev), unsafe_allow_html=True)
     with m2:
-        st.metric(
-            "ROI сценария",
-            f"{test_roi:+.1f}%",
-            delta=f"{test_roi - s['roi']:+.1f} п.п."
-        )
+        st.markdown(metric_card("Валовая прибыль", f"{test_gross_profit:,.0f} ₽".replace(",", " "), df_prof, c_prof), unsafe_allow_html=True)
     with m3:
-        st.metric(
-            "LTV:CAC сценария",
-            f"{test_ltv_cac:.2f}×",
-            delta=f"{test_ltv_cac - s['ltv_cac']:+.2f}×"
-        )
+        st.markdown(metric_card("Выручка (1 мес.)", f"{test_rev_m1:,.0f} ₽".replace(",", " "), df_rev1, c_rev1), unsafe_allow_html=True)
+    with m4:
+        st.markdown(metric_card("Прибыль (1 мес.)", f"{test_profit_m1:,.0f} ₽".replace(",", " "), df_prof1, c_prof1), unsafe_allow_html=True)
+
+    st.markdown("<div style='margin-top:1rem'></div>", unsafe_allow_html=True)
+    m5, m6, m7 = st.columns(3)
+    
+    dr_purch = test_purch - one_time_buys_calc
+    df_purch, c_purch = format_diff(dr_purch, one_time_buys_calc)
+
+    dr_roi = test_roi - s['roi']
+    df_roi, c_roi = format_diff(dr_roi, suffix=" п.п.")
+
+    dr_ltv = test_ltv_cac - s['ltv_cac']
+    df_ltv, c_ltv = format_diff(dr_ltv, suffix="×")
+
+    with m5:
+        st.markdown(metric_card("Покупателей разборов", f"{test_purch:,.1f}".replace(",", " "), df_purch, c_purch), unsafe_allow_html=True)
+    with m6:
+        st.markdown(metric_card("ROI сценария", f"{test_roi:+.1f}%", df_roi, c_roi), unsafe_allow_html=True)
+    with m7:
+        st.markdown(metric_card("LTV:CAC сценария", f"{test_ltv_cac:.2f}×", df_ltv, c_ltv), unsafe_allow_html=True)
 
 
 # ═══════════════════════════════════════════════════

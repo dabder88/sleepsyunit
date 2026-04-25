@@ -20,129 +20,58 @@ st.set_page_config(
 # ═══════════════════════════════════════════════════
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Syne:wght@600;700;800&display=swap');
 
-/* ── Базовые шрифты ─────────────────────────── */
-html, body, [class*="css"], .stApp {
-    font-family: 'DM Sans', system-ui, sans-serif !important;
+html, body, [class*="css"] {
+    font-family: 'Inter', sans-serif !important;
 }
 
-/* ── Метрические карточки ───────────────────── */
+/* ── Фикс для ширины ────────────────────────── */
+.block-container {
+    padding-top: 1.5rem !important;
+    padding-bottom: 3rem !important;
+}
+
+/* ── Метрики-карточки (metric_card) ──────────────── */
 .sc {
-    background: linear-gradient(145deg, rgba(30,27,75,0.9) 0%, rgba(49,46,129,0.7) 100%);
-    border: 1px solid rgba(167,139,250,0.2);
-    border-radius: 18px;
-    padding: 1.2rem 1.4rem;
-    color: #fff;
-    margin-bottom: 0.5rem;
-    transition: transform .25s ease, box-shadow .25s ease;
-    backdrop-filter: blur(6px);
-    position: relative;
-    overflow: hidden;
+    background: #0A0A0A;
+    border: 1px solid #27272a;
+    border-radius: 12px;
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    transition: all 0.2s ease;
 }
-.sc::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: radial-gradient(ellipse at 0% 0%, rgba(167,139,250,0.12) 0%, transparent 60%);
-    pointer-events: none;
-}
-.sc:hover { transform: translateY(-3px); box-shadow: 0 12px 30px rgba(99,60,220,0.25); }
-.sc.good {
-    background: linear-gradient(145deg, rgba(2,44,34,0.9), rgba(6,78,59,0.8));
-    border-color: rgba(52,211,153,0.3);
-}
-.sc.good::before { background: radial-gradient(ellipse at 0% 0%, rgba(52,211,153,0.1) 0%, transparent 60%); }
-.sc.bad {
-    background: linear-gradient(145deg, rgba(69,10,10,0.9), rgba(127,29,29,0.8));
-    border-color: rgba(252,165,165,0.3);
-}
-.sc.bad::before { background: radial-gradient(ellipse at 0% 0%, rgba(252,165,165,0.1) 0%, transparent 60%); }
-.sc .lbl { font-size:.68rem; font-weight:600; letter-spacing:.1em; text-transform:uppercase; opacity:.65; margin-bottom:.25rem; }
-.sc .val { font-family:'Syne',sans-serif; font-size:1.75rem; font-weight:700; line-height:1.15; }
-.sc .dlt { font-size:.78rem; opacity:.75; margin-top:.2rem; }
+.sc:hover { transform: translateY(-2px); border-color: #3f3f46; box-shadow: 0 8px 30px rgba(0,0,0,0.5); }
+.sc.good { background: rgba(6, 78, 59, 0.15); border-color: rgba(52, 211, 153, 0.2); }
+.sc.bad { background: rgba(127, 29, 29, 0.15); border-color: rgba(252, 165, 165, 0.2); }
+.sc .lbl { font-size: 0.75rem; font-weight: 600; color: #a1a1aa; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; }
+.sc .val { font-family: 'Syne', sans-serif; font-size: 1.8rem; font-weight: 700; color: #f4f4f5; line-height: 1.2; }
+.sc .dlt { font-size: 0.8rem; color: #a1a1aa; margin-top: 0.4rem; font-weight: 500;}
+.sc.good .dlt { color: #34d399; }
+.sc.bad .dlt { color: #f87171; }
 
 /* ── Секционный заголовок ───────────────────── */
-.s-sect {
-    display: flex;
-    align-items: center;
-    gap: .5rem;
-    font-family: 'Syne', sans-serif;
-    font-size: 1rem;
-    font-weight: 700;
-    color: #a78bfa;
-    padding: .5rem 0;
-    border-bottom: 1px solid rgba(167,139,250,.18);
-    margin: 1.4rem 0 .9rem;
-    letter-spacing: .02em;
-}
+.s-sect { display: flex; align-items: center; gap: 0.5rem; font-family: 'Syne', sans-serif; font-size: 1.1rem; font-weight: 700; color: #f4f4f5; padding: 0.75rem 0; border-bottom: 1px solid #27272a; margin: 1.5rem 0 1rem; }
 
 /* ── Информационный баннер ──────────────────── */
-.s-info {
-    background: linear-gradient(135deg, rgba(79,70,229,0.14), rgba(96,165,250,0.10));
-    border: 1px solid rgba(167,139,250,.35);
-    border-radius: 12px;
-    padding: .8rem 1.2rem;
-    color: #c4b5fd;
-    font-size: .92rem;
-    margin: .8rem 0 1rem;
-    line-height: 1.55;
-}
+.s-info { background: #18181b; border: 1px solid #27272a; border-radius: 8px; padding: 1rem 1.2rem; color: #a1a1aa; font-size: 0.9rem; margin: 0.5rem 0 1.2rem; line-height: 1.6; }
 
 /* ── Подсказка-бейдж ────────────────────────── */
-.s-badge {
-    display: inline-block;
-    background: rgba(167,139,250,.15);
-    border: 1px solid rgba(167,139,250,.3);
-    border-radius: 8px;
-    padding: .25rem .7rem;
-    font-size: .78rem;
-    color: #c4b5fd;
-    font-weight: 500;
-    margin-bottom: .5rem;
-}
+.s-badge { display: inline-block; background: #27272a; border: 1px solid #3f3f46; border-radius: 6px; padding: 0.2rem 0.6rem; font-size: 0.8rem; color: #e4e4e7; font-weight: 500; margin-bottom: 0.5rem; }
 
 /* ── Табы ───────────────────────────────────── */
-.stTabs [data-baseweb="tab-list"] {
-    background: rgba(15,12,50,.7);
-    border-radius: 14px;
-    padding: 5px 6px;
-    gap: 4px;
-    border: 1px solid rgba(99,102,241,.2);
-}
-.stTabs [data-baseweb="tab"] {
-    border-radius: 10px;
-    font-weight: 500;
-    color: #818cf8;
-    font-size: .88rem;
-    padding: .4rem 1.1rem;
-}
-.stTabs [aria-selected="true"] {
-    background: linear-gradient(135deg, #4338ca, #6d28d9) !important;
-    color: #fff !important;
-    box-shadow: 0 4px 12px rgba(99,60,220,.35);
-}
+.stTabs [data-baseweb="tab-list"] { background: transparent; border-bottom: 1px solid #27272a; gap: 1rem; padding: 0; }
+.stTabs [data-baseweb="tab"] { background: transparent; border: none; border-radius: 0; font-family: 'Inter', sans-serif; font-weight: 600; font-size: 0.95rem; color: #a1a1aa; padding: 0.75rem 0.5rem; }
+.stTabs [aria-selected="true"] { color: #f4f4f5 !important; border-bottom: 2px solid #8b5cf6 !important; background: transparent !important; box-shadow: none; }
 
 /* ── Экспандеры ─────────────────────────────── */
-details[data-testid="stExpander"] > summary {
-    color: #c4b5fd !important;
-    font-weight: 600 !important;
-    font-size: .95rem;
-}
-div[data-testid="stExpander"] {
-    background: rgba(30,27,75,.4) !important;
-    border-radius: 14px !important;
-    border: 1px solid rgba(167,139,250,.18) !important;
-}
-
-/* ── Делитель ───────────────────────────────── */
-hr { border-color: rgba(167,139,250,.12) !important; margin: 1.2rem 0 !important; }
+div[data-testid="stExpander"] { background: transparent !important; border-radius: 12px !important; border: 1px solid #27272a !important; }
+details[data-testid="stExpander"] > summary { color: #f4f4f5 !important; font-weight: 600 !important; font-size: 0.95rem; }
 
 /* ── Алёрты ─────────────────────────────────── */
-div[data-testid="stAlert"] {
-    border-radius: 12px !important;
-    font-weight: 500;
-}
+div[data-testid="stAlert"] { border-radius: 12px !important; font-weight: 500; }
+hr { border-color: #27272a !important; margin: 1.5rem 0 !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -207,7 +136,7 @@ tab1, tab2, tab3, tab4 = st.tabs([
 # ──────────────────────────────────────────────────
 # ТАБ 1 · ТРАФИК
 # ──────────────────────────────────────────────────
-with tab1:
+with st.sidebar.expander("📡 Рекламный трафик", expanded=True):
     section("📡", "Рекламный трафик")
 
     calc_mode = st.radio(
@@ -221,7 +150,7 @@ with tab1:
         )
     )
 
-    col_a, col_b, col_c = st.columns(3)
+    col_a, col_b, col_c = st.container(), st.container(), st.container()
     default_cpc    = st.session_state.get("cpc_raw", 30.0)
     default_clicks = st.session_state.get("clicks_raw", 10_000)
     default_budget = st.session_state.get("budget_raw", 300_000.0)
@@ -309,7 +238,7 @@ with tab1:
 # ──────────────────────────────────────────────────
 # ТАБ 2 · ВОРОНКА КВИЗА
 # ──────────────────────────────────────────────────
-with tab2:
+with st.sidebar.expander("🎯 Воронка квиза", expanded=False):
     section("🧠", "Квиз-воронка Sleepsy")
     badge("Путь: клик → квиз без регистрации → оплата разбора")
 
@@ -347,7 +276,7 @@ with tab2:
     st.divider()
     section("💜", "Цена и себестоимость разбора сна")
 
-    col3, col4 = st.columns(2)
+    col3, col4 = st.container(), st.container()
     with col3:
         price_one_time = st.number_input(
             "💜 Цена полного разбора сна, ₽",
@@ -387,7 +316,7 @@ with tab2:
 # ──────────────────────────────────────────────────
 # ТАБ 3 · ПОДПИСКИ
 # ──────────────────────────────────────────────────
-with tab3:
+with st.sidebar.expander("🔄 Подписки", expanded=False):
     section("🔄", "Подписочные тарифы Sleepsy")
 
     info_box(
@@ -418,7 +347,7 @@ with tab3:
     tariffs = []
     for idx, meta in enumerate(TARIFF_META):
         with st.expander(f"{meta['name']} — {meta['desc']}", expanded=(idx == 0)):
-            col_t1, col_t2, col_t3 = st.columns(3)
+            col_t1, col_t2, col_t3 = st.container(), st.container(), st.container()
             with col_t1:
                 conv = st.number_input(
                     "Конверсия в тариф, %", key=f"conv_{idx}",
@@ -441,7 +370,7 @@ with tab3:
                     help="Вероятность продления подписки на следующий месяц."
                 ) / 100.0
 
-            col_d1, col_d2 = st.columns(2)
+            col_d1, col_d2 = st.container(), st.container()
             with col_d1:
                 theory_life = round(1 / (1 - renew), 1) if renew < 1 else 999.0
                 duration = st.number_input(
@@ -472,10 +401,10 @@ with tab3:
 # ──────────────────────────────────────────────────
 # ТАБ 4 · ПАРАМЕТРЫ
 # ──────────────────────────────────────────────────
-with tab4:
+with st.sidebar.expander("⚙️ Финансовые параметры", expanded=False):
     section("⚙️", "Финансовые параметры")
 
-    col_s1, col_s2 = st.columns(2)
+    col_s1, col_s2 = st.container(), st.container()
     with col_s1:
         payment_fee = st.slider(
             "💳 Комиссия платёжной системы, %",
@@ -534,7 +463,7 @@ with tab4:
     profiles = load_profiles()
 
     # ── Сохранение ────────────────────────────────
-    pf_col1, pf_col2 = st.columns([3, 1])
+    pf_col1, pf_col2 = st.container(), st.container()
     with pf_col1:
         profile_name = st.text_input(
             "Имя профиля", value="Базовый сценарий",
@@ -579,7 +508,7 @@ with tab4:
     # ── Загрузка / удаление ───────────────────────
     if profiles:
         st.markdown("<div style='margin-top:.5rem'></div>", unsafe_allow_html=True)
-        ld_col1, ld_col2, ld_col3 = st.columns([3, 1, 1])
+        ld_col1, ld_col2, ld_col3 = st.container(), st.container(), st.container()
         with ld_col1:
             selected_profile = st.selectbox(
                 "Загрузить профиль", options=list(profiles.keys()), key="_pf_select"
@@ -927,7 +856,8 @@ with tab_c1:
 
 # ── Воронка ───────────────────────────────────────
 
-with tab_c2:
+with tab_c1:
+    st.markdown("<div style='margin-top:2rem'></div>", unsafe_allow_html=True)
     funnel_df = res["charts"]["funnel"]
     fig_fun = go.Figure(go.Funnel(
         y=funnel_df["Этап"],
@@ -953,7 +883,7 @@ with tab_c2:
 
 
 # ── Помесячная динамика ────────────────────────────
-with tab_c3:
+with tab_c2:
     monthly_df = res["monthly"]
     
     # 1. График Выручки и Прибыли
@@ -1022,7 +952,7 @@ with tab_c3:
 
 
 # ── Сценарии ──────────────────────────────────────
-with tab_c4:
+with tab_c3:
     st.markdown(
         '<p style="font-family:Syne,sans-serif;font-size:1rem;font-weight:700;'
         'color:#a78bfa;margin-bottom:.5rem">🔬 Анализ чувствительности</p>',

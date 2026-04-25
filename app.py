@@ -199,6 +199,7 @@ with st.sidebar.expander("📡 Рекламный трафик", expanded=True):
         actual_cpc    = cpc_raw
         actual_budget = budget_raw
         actual_clicks = int(actual_budget / actual_cpc) if actual_cpc > 0 else 0
+        st.session_state["clicks_raw"] = actual_clicks
         # Без key= — Streamlit читает value= при каждом рендере (не кеширует)
         with col_b:
             st.number_input(
@@ -212,6 +213,7 @@ with st.sidebar.expander("📡 Рекламный трафик", expanded=True):
         actual_budget = budget_raw
         actual_cpc    = (actual_budget / actual_clicks
                          if actual_clicks > 0 else 0.0)
+        st.session_state["cpc_raw"] = actual_cpc
         with col_a:
             st.number_input(
                 "💸 Стоимость клика, ₽ (CPC)",
@@ -223,6 +225,7 @@ with st.sidebar.expander("📡 Рекламный трафик", expanded=True):
         actual_cpc    = cpc_raw
         actual_clicks = clicks_raw
         actual_budget = actual_cpc * actual_clicks
+        st.session_state["budget_raw"] = actual_budget
         with col_c:
             st.number_input(
                 "💰 Рекламный бюджет, ₽",
@@ -332,24 +335,21 @@ with st.sidebar.expander("🔄 Подписки", expanded=False):
     TARIFF_META = [
         {
             "name": "🌙 Базовый",
-            "desc": "Ограниченные анализы снов в месяц, базовая аналитика",
             "conv": 15.0, "price": 299.0, "renew": 80.0, "dur": 5.0, "cogs": 20.0
         },
         {
             "name": "⭐ Стандарт",
-            "desc": "Неограниченные анализы снов, 6 методологий психоанализа",
             "conv": 7.0, "price": 599.0, "renew": 87.0, "dur": 7.7, "cogs": 40.0
         },
         {
             "name": "🔮 Премиум",
-            "desc": "Полный доступ: психо + эзотерический трек + PDF-бонусы",
             "conv": 3.0, "price": 999.0, "renew": 93.0, "dur": 14.3, "cogs": 70.0
         }
     ]
 
     tariffs = []
     for idx, meta in enumerate(TARIFF_META):
-        with st.expander(f"{meta['name']} — {meta['desc']}", expanded=(idx == 0)):
+        with st.expander(f"{meta['name']}", expanded=(idx == 0)):
             col_t1, col_t2, col_t3 = st.container(), st.container(), st.container()
             with col_t1:
                 conv = st.number_input(
@@ -392,10 +392,17 @@ with st.sidebar.expander("🔄 Подписки", expanded=False):
                     help="Затраты на обслуживание одного подписчика в месяц: AI-токены, хостинг, поддержка."
                 )
 
+            comment = st.text_area(
+                "📝 Комментарии к тарифу",
+                value=st.session_state.get(f"comment_{idx}", meta.get("comment", "")),
+                key=f"comment_{idx}",
+                help="Свободное поле для заметок по данному тарифу."
+            )
+
             tariffs.append({
                 "name": meta["name"],
                 "conv": conv, "price": price, "renew": renew,
-                "dur": duration, "cogs": cogs
+                "dur": duration, "cogs": cogs, "comment": comment
             })
 
 
@@ -472,9 +479,26 @@ with st.sidebar.expander("💾 Профили настроек", expanded=False)
         )
     with pf_col2:
         st.markdown("<div style='margin-top:1.8rem'></div>", unsafe_allow_html=True)
-        if st.button("💾 Сохранить", use_container_width=True):
-            if profile_name.strip():
-                profiles[profile_name.strip()] = {
+        
+        btn_col1, btn_col2 = st.columns(2)
+        with btn_col1:
+            btn_save_new = st.button("➕ Как новый", use_container_width=True)
+        with btn_col2:
+            btn_update = st.button("🔄 Обновить", use_container_width=True)
+
+        if btn_save_new or btn_update:
+            target_name = profile_name.strip()
+            
+            if btn_update:
+                if not st.session_state.get('active_profile'):
+                    st.error("Нет загруженного профиля для обновления!")
+                    st.stop()
+                target_name = st.session_state['active_profile']
+            elif not target_name:
+                st.error("Введите имя профиля!")
+                st.stop()
+                
+            profiles[target_name] = {
                     "saved_at": datetime.now().isoformat(timespec="seconds"),
                     "traffic": {
                         "calc_mode": calc_mode,
@@ -500,11 +524,13 @@ with st.sidebar.expander("💾 Профили настроек", expanded=False)
                             "renew": round(t["renew"] * 100.0, 2),
                             "dur":   t["dur"],
                             "cogs":  t["cogs"],
+                            "comment": t.get("comment", ""),
                         } for t in tariffs
                     ],
-                }
-                save_profiles(profiles)
-                st.success(f"✅ Профиль «{profile_name.strip()}» сохранён!")
+            }
+            save_profiles(profiles)
+            st.session_state['active_profile'] = target_name
+            st.success(f"✅ Профиль «{target_name}» сохранён!")
 
     # ── Загрузка / удаление ───────────────────────
     if profiles:
@@ -518,6 +544,8 @@ with st.sidebar.expander("💾 Профили настроек", expanded=False)
             st.markdown("<div style='margin-top:1.8rem'></div>", unsafe_allow_html=True)
             
             def apply_profile(prof_name):
+                st.session_state['_pf_name'] = prof_name
+                st.session_state['active_profile'] = prof_name
                 pdata = profiles.get(prof_name)
                 if not pdata: return
                 t = pdata.get("traffic", {})
@@ -543,6 +571,7 @@ with st.sidebar.expander("💾 Профили настроек", expanded=False)
                     st.session_state[f"renew_{idx}"] = float(td.get("renew", [80.0, 87.0, 93.0][idx]))
                     st.session_state[f"dur_{idx}"]   = float(td.get("dur", [5.0, 7.7, 14.3][idx]))
                     st.session_state[f"cogs_{idx}"]  = float(td.get("cogs", [20.0, 40.0, 70.0][idx]))
+                    st.session_state[f"comment_{idx}"] = td.get("comment", "")
 
             if st.button("📂 Загрузить", use_container_width=True, on_click=apply_profile, args=(selected_profile,)):
                 st.success(f"✅ Загружен профиль «{selected_profile}»")
@@ -787,14 +816,14 @@ with row1[3]:
 with row2[0]:
     st.markdown(metric_card(
         "Лидов из квиза",
-        f"{res['traffic']['leads']:,}",
+        f"{res['traffic']['leads']:,.1f}",
         f"CPL: {res['traffic']['cpl']:.0f} ₽"
     ), unsafe_allow_html=True)
 
 with row2[1]:
     st.markdown(metric_card(
         "Разовых покупателей",
-        f"{one_time_buys_calc:,}",
+        f"{one_time_buys_calc:,.1f}",
         f"Конверс. из лида: {res['traffic']['leads'] and one_time_buys_calc / res['traffic']['leads'] * 100:.1f}%"
         if res["traffic"]["leads"] > 0 else "—"
     ), unsafe_allow_html=True)
@@ -858,17 +887,19 @@ with tab_c1:
 with tab_c1:
     st.markdown("<div style='margin-top:2rem'></div>", unsafe_allow_html=True)
     funnel_df = res["charts"]["funnel"]
-    fig_fun = go.Figure(go.Funnel(
+    fig_fun = go.Figure(go.Bar(
         y=funnel_df["Этап"],
         x=funnel_df["Пользователей"],
-        textposition="inside",
-        textinfo="value+percent initial",
+        orientation='h',
+        text=[f"{v:,.0f} чел. ({p:.1f}%)" for v, p in zip(funnel_df["Пользователей"], (funnel_df["Пользователей"] / funnel_df["Пользователей"].iloc[0]) * 100)],
+        textposition="auto",
         marker=dict(
-            color=["#6366f1", "#7c3aed", "#a78bfa", "#c4b5fd"],
-            line=dict(color="rgba(0,0,0,0)", width=0)
+            color=["#8b5cf6", "#a78bfa", "#c4b5fd", "#ddd6fe"],
+            line=dict(color="rgba(0,0,0,0)", width=0),
+            cornerradius=5
         ),
-        connector=dict(line=dict(color="rgba(167,139,250,0.25)", width=2))
     ))
+    fig_fun.update_yaxes(autorange="reversed")
     fig_fun.update_layout(
         separators=", ",
         height=350,

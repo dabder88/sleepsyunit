@@ -20,58 +20,62 @@ st.set_page_config(
 # ═══════════════════════════════════════════════════
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Syne:wght@600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;500;600&family=Syne:wght@600;700;800&display=swap');
 
 html, body, [class*="css"] {
-    font-family: 'Inter', sans-serif !important;
+    font-family: 'DM Sans', sans-serif;
 }
 
-/* ── Фикс для ширины ────────────────────────── */
 .block-container {
-    padding-top: 1.5rem !important;
+    padding-top: 2rem !important;
     padding-bottom: 3rem !important;
 }
 
 /* ── Метрики-карточки (metric_card) ──────────────── */
 .sc {
-    background: #0A0A0A;
-    border: 1px solid #27272a;
-    border-radius: 12px;
+    background: rgba(139, 92, 246, 0.06);
+    border: 1px solid rgba(139, 92, 246, 0.25);
+    border-radius: 16px;
     padding: 1.25rem 1.5rem;
     margin-bottom: 1rem;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-    transition: all 0.2s ease;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
 }
-.sc:hover { transform: translateY(-2px); border-color: #3f3f46; box-shadow: 0 8px 30px rgba(0,0,0,0.5); }
-.sc.good { background: rgba(6, 78, 59, 0.15); border-color: rgba(52, 211, 153, 0.2); }
-.sc.bad { background: rgba(127, 29, 29, 0.15); border-color: rgba(252, 165, 165, 0.2); }
-.sc .lbl { font-size: 0.75rem; font-weight: 600; color: #a1a1aa; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; }
-.sc .val { font-family: 'Syne', sans-serif; font-size: 1.8rem; font-weight: 700; color: #f4f4f5; line-height: 1.2; }
-.sc .dlt { font-size: 0.8rem; color: #a1a1aa; margin-top: 0.4rem; font-weight: 500;}
-.sc.good .dlt { color: #34d399; }
-.sc.bad .dlt { color: #f87171; }
+.sc:hover { transform: translateY(-3px); box-shadow: 0 12px 25px rgba(139,92,246,0.15); border-color: rgba(139, 92, 246, 0.45); background: rgba(139, 92, 246, 0.09); }
+.sc.good { border-color: rgba(52,211,153,0.4); background: rgba(52,211,153,0.1); }
+.sc.bad { border-color: rgba(248,113,113,0.4); background: rgba(248,113,113,0.1); }
+.sc .lbl { font-size:.68rem; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color: var(--text-color); opacity: 0.65; margin-bottom:.25rem; }
+.sc .val { font-family:'Syne',sans-serif; font-size:1.75rem; font-weight:700; line-height:1.15; color: var(--text-color); }
+.sc .dlt { font-size:.78rem; color: var(--text-color); opacity: 0.8; margin-top:.2rem; }
 
 /* ── Секционный заголовок ───────────────────── */
-.s-sect { display: flex; align-items: center; gap: 0.5rem; font-family: 'Syne', sans-serif; font-size: 1.1rem; font-weight: 700; color: #f4f4f5; padding: 0.75rem 0; border-bottom: 1px solid #27272a; margin: 1.5rem 0 1rem; }
+.s-sect {
+    display: flex; align-items: center; gap: .5rem; font-family: 'Syne', sans-serif; font-size: 1rem; font-weight: 700; 
+    color: #8b5cf6; padding: .5rem 0; border-bottom: 1px solid rgba(139,92,246,.18); margin: 1.4rem 0 .9rem; letter-spacing: .02em;
+}
 
 /* ── Информационный баннер ──────────────────── */
-.s-info { background: #18181b; border: 1px solid #27272a; border-radius: 8px; padding: 1rem 1.2rem; color: #a1a1aa; font-size: 0.9rem; margin: 0.5rem 0 1.2rem; line-height: 1.6; }
+.s-info {
+    background: rgba(99,102,241,0.05); border: 1px solid rgba(99,102,241,.2); border-radius: 12px; padding: .8rem 1.2rem;
+    color: var(--text-color); opacity: 0.9; font-size: .92rem; margin: .8rem 0 1rem; line-height: 1.55;
+}
 
 /* ── Подсказка-бейдж ────────────────────────── */
-.s-badge { display: inline-block; background: #27272a; border: 1px solid #3f3f46; border-radius: 6px; padding: 0.2rem 0.6rem; font-size: 0.8rem; color: #e4e4e7; font-weight: 500; margin-bottom: 0.5rem; }
+.s-badge { display: inline-block; background: rgba(139,92,246,.1); border: 1px solid rgba(139,92,246,.2); border-radius: 8px; padding: .25rem .7rem; font-size: .78rem; color: var(--text-color); font-weight: 500; margin-bottom: .5rem; }
 
 /* ── Табы ───────────────────────────────────── */
-.stTabs [data-baseweb="tab-list"] { background: transparent; border-bottom: 1px solid #27272a; gap: 1rem; padding: 0; }
-.stTabs [data-baseweb="tab"] { background: transparent; border: none; border-radius: 0; font-family: 'Inter', sans-serif; font-weight: 600; font-size: 0.95rem; color: #a1a1aa; padding: 0.75rem 0.5rem; }
-.stTabs [aria-selected="true"] { color: #f4f4f5 !important; border-bottom: 2px solid #8b5cf6 !important; background: transparent !important; box-shadow: none; }
+.stTabs [data-baseweb="tab-list"] { background: var(--secondary-background-color); border-radius: 14px; padding: 5px 6px; gap: 4px; border: 1px solid rgba(139,92,246,.1); }
+.stTabs [data-baseweb="tab"] { border-radius: 10px; font-weight: 500; color: var(--text-color); font-size: .88rem; padding: .4rem 1.1rem; }
+.stTabs [aria-selected="true"] { background: linear-gradient(135deg, #8b5cf6, #6d28d9) !important; color: #ffffff !important; box-shadow: 0 4px 12px rgba(139,92,246,.2); }
 
 /* ── Экспандеры ─────────────────────────────── */
-div[data-testid="stExpander"] { background: transparent !important; border-radius: 12px !important; border: 1px solid #27272a !important; }
-details[data-testid="stExpander"] > summary { color: #f4f4f5 !important; font-weight: 600 !important; font-size: 0.95rem; }
+details[data-testid="stExpander"] > summary { color: var(--text-color) !important; font-weight: 600 !important; font-size: .95rem; }
+div[data-testid="stExpander"] { background: var(--background-color) !important; border-radius: 14px !important; border: 1px solid var(--secondary-background-color) !important; }
 
 /* ── Алёрты ─────────────────────────────────── */
 div[data-testid="stAlert"] { border-radius: 12px !important; font-weight: 500; }
-hr { border-color: #27272a !important; margin: 1.5rem 0 !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -113,8 +117,8 @@ with h_col1:
         unsafe_allow_html=True
     )
     st.markdown(
-        '<p style="color:#818cf8;font-size:.95rem;margin:.3rem 0 0;opacity:.85">'
-        'Юнит-экономика: реклама → квиз → разбор сна → подписка</p>',
+        '<p style="color:var(--text-color);font-size:.95rem;margin:.3rem 0 0;opacity:.85">'
+        'Юнит-экономика: реклама → квиз → анализ снов сна → подписка</p>',
         unsafe_allow_html=True
     )
 with h_col2:
@@ -125,12 +129,11 @@ st.divider()
 # ═══════════════════════════════════════════════════
 #  ВКЛАДКИ
 # ═══════════════════════════════════════════════════
-tab1, tab2, tab3, tab4 = st.tabs([
-    "🚀  Трафик",
-    "🎯  Воронка квиза",
-    "🔄  Подписки",
-    "⚙️  Параметры"
-])
+st.sidebar.markdown(
+    '<p style="font-family:Syne,sans-serif;font-size:1.5rem;font-weight:800;'
+    'color:var(--text-color);margin-bottom:1.5rem;">⚙️ Настройки</p>',
+    unsafe_allow_html=True
+)
 
 
 # ──────────────────────────────────────────────────
@@ -240,12 +243,12 @@ with st.sidebar.expander("📡 Рекламный трафик", expanded=True):
 # ──────────────────────────────────────────────────
 with st.sidebar.expander("🎯 Воронка квиза", expanded=False):
     section("🧠", "Квиз-воронка Sleepsy")
-    badge("Путь: клик → квиз без регистрации → оплата разбора")
+    badge("Путь: клик → квиз без регистрации → оплата анализа")
 
     st.markdown(
-        '<p style="color:#818cf8;font-size:.88rem;margin:0 0 .8rem">'
+        '<p style="color:var(--text-color);font-size:.88rem;margin:0 0 .8rem">'
         'Пользователь вводит сон, проходит вовлекающие шаги (commitment escalation), '
-        'затем оплачивает полный разбор. Регистрация — опционально.</p>',
+        'затем оплачивает полный анализ снов. Регистрация — опционально.</p>',
         unsafe_allow_html=True
     )
 
@@ -263,7 +266,7 @@ with st.sidebar.expander("🎯 Воронка квиза", expanded=False):
         ) / 100.0
     with col2:
         conv_purchase = st.slider(
-            "🌙 Конверсия в покупку разбора, %",
+            "🌙 Конверсия в покупку анализа, %",
             0.0, 100.0,
             float(st.session_state.get("conv_purchase_pct", 18.0)),
             0.5, key="conv_purchase_pct",
@@ -274,12 +277,12 @@ with st.sidebar.expander("🎯 Воронка квиза", expanded=False):
         ) / 100.0
 
     st.divider()
-    section("💜", "Цена и себестоимость разбора сна")
+    section("💜", "Цена и себестоимость анализа сна")
 
     col3, col4 = st.container(), st.container()
     with col3:
         price_one_time = st.number_input(
-            "💜 Цена полного разбора сна, ₽",
+            "💜 Цена полного анализа сна, ₽",
             min_value=0.0,
             value=float(st.session_state.get("price_one_time", 149.0)),
             step=10.0, key="price_one_time",
@@ -287,12 +290,12 @@ with st.sidebar.expander("🎯 Воронка квиза", expanded=False):
         )
     with col4:
         cogs_one_time = st.number_input(
-            "🤖 Себестоимость разбора (AI-токены + инфра), ₽",
+            "🤖 Себестоимость анализа (AI-токены + инфра), ₽",
             min_value=0.0,
             value=float(st.session_state.get("cogs_one_time", 12.0)),
             step=1.0, key="cogs_one_time",
             help=(
-                "Прямые затраты на один разбор: токены LLM (Claude/GPT), "
+                "Прямые затраты на один анализ снов: токены LLM (Claude/GPT), "
                 "хостинг, поддержка, налоги. Ориентир: 8–20 ₽."
             )
         )
@@ -306,7 +309,7 @@ with st.sidebar.expander("🎯 Воронка квиза", expanded=False):
         value=float(st.session_state.get("email_monet", 5.0)),
         step=0.5, key="email_monet",
         help=(
-            "Средний доход с пользователя, прошедшего квиз, но НЕ купившего разбор. "
+            "Средний доход с пользователя, прошедшего квиз, но НЕ купившего анализ снов. "
             "Включает: email-последовательности с повторными офферами, PDF-бонус, "
             "партнёрские ссылки, ретаргетинг-аудитории."
         )
@@ -329,12 +332,12 @@ with st.sidebar.expander("🔄 Подписки", expanded=False):
     TARIFF_META = [
         {
             "name": "🌙 Базовый",
-            "desc": "Ограниченные разборы в месяц, базовая аналитика",
+            "desc": "Ограниченные анализы снов в месяц, базовая аналитика",
             "conv": 15.0, "price": 299.0, "renew": 80.0, "dur": 5.0, "cogs": 20.0
         },
         {
             "name": "⭐ Стандарт",
-            "desc": "Неограниченные разборы, 6 методологий психоанализа",
+            "desc": "Неограниченные анализы снов, 6 методологий психоанализа",
             "conv": 7.0, "price": 599.0, "renew": 87.0, "dur": 7.7, "cogs": 40.0
         },
         {
@@ -373,15 +376,13 @@ with st.sidebar.expander("🔄 Подписки", expanded=False):
             col_d1, col_d2 = st.container(), st.container()
             with col_d1:
                 theory_life = round(1 / (1 - renew), 1) if renew < 1 else 999.0
-                duration = st.number_input(
-                    "Ожидаемый срок подписки, мес", key=f"dur_{idx}",
-                    value=float(st.session_state.get(f"dur_{idx}", meta["dur"])),
-                    min_value=0.1, step=0.1,
-                    help=(
-                        f"Средний срок жизни подписки. "
-                        f"При ретеншне {renew*100:.0f}% теоретический LT = 1/(1−r) = {theory_life} мес. "
-                        f"Задайте реалистичный срок с учётом контракта и платформы."
-                    )
+                duration = theory_life
+                st.text_input(
+                    "Срок (авторасчет), мес",
+                    value=f"{theory_life}",
+                    key=f"dur_auto_{idx}",
+                    disabled=True,
+                    help=f"Рассчитывается математически: 1 / (1 - Ретеншн). При {renew*100:.0f}% срок жизни = {theory_life} мес."
                 )
             with col_d2:
                 cogs = st.number_input(
@@ -442,8 +443,8 @@ with st.sidebar.expander("⚙️ Финансовые параметры", expan
         "<strong>Окупаемость CAC</strong> = CAC / Месячная маржа подписки"
     )
 
-    st.divider()
-    section("💾", "Профили настроек")
+with st.sidebar.expander("💾 Профили настроек", expanded=False):
+    st.markdown("<div style='margin-top:-1rem'></div>", unsafe_allow_html=True)
 
     PROFILES_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sleepsy_profiles.json")
 
@@ -575,7 +576,7 @@ def calculate_metrics():
     leads             = actual_clicks * conv_quiz
     one_time_buys     = leads * conv_purchase
 
-    # ── Разовые разборы ───────────────────────────
+    # ── Разовые анализы снов ───────────────────────────
     gross_ot    = one_time_buys * price_one_time
     cogs_ot     = one_time_buys * cogs_one_time
     fees_ot     = gross_ot * payment_fee
@@ -628,7 +629,7 @@ def calculate_metrics():
     gross_profit  = total_revenue - total_costs - all_fees
 
     # ── Взвешенный LTV на одного покупателя ───────
-    # = чистая прибыль с разбора + вероятностные LTV подписок
+    # = чистая прибыль с анализа + вероятностные LTV подписок
     ltv_one_time = (price_one_time - cogs_one_time) * (1 - payment_fee - refund_rate)
     weighted_ltv = ltv_one_time if one_time_buys > 0 else 0
     for t in tariffs:
@@ -646,7 +647,7 @@ def calculate_metrics():
     cpl    = ad_spend / leads if leads > 0 else 0
 
     # ── Помесячная выручка (12 мес.) ─────────────
-    # Месяц 1: разборы + email + первые платежи подписок
+    # Месяц 1: анализы снов + email + первые платежи подписок
     # Месяц 2–12: только продления (с учётом ретеншна)
     # ── Помесячная выручка и прибыль (12 мес.) ───
     N_MONTHS = 12
@@ -654,7 +655,7 @@ def calculate_metrics():
     for m in range(1, N_MONTHS + 1):
         month_data = {"Месяц": m}
         
-        # Разборы и Email (только 1-й месяц)
+        # Анализы снов и Email (только 1-й месяц)
         rev_ot_m    = gross_ot if m == 1 else 0.0
         rev_email_m = email_rev if m == 1 else 0.0
         
@@ -689,7 +690,7 @@ def calculate_metrics():
     # ── Данные для графиков ───────────────────────
     pnl_df = pd.DataFrame({
         "Статья": [
-            "Разборы снов", "Подписки", "Email-монет.",
+            "Анализы снов", "Подписки", "Email-монет.",
             "Реклама", "Себестоимость", "Комиссии и возвраты"
         ],
         "Сумма": [
@@ -703,7 +704,7 @@ def calculate_metrics():
         "Этап": [
             "🖱️ Клики по рекламе",
             "📋 Прошли квиз",
-            "💜 Купили разбор",
+            "💜 Купили анализ снов",
             "🔄 Оформили подписку"
         ],
         "Пользователей": [
@@ -802,7 +803,7 @@ with row2[2]:
     st.markdown(metric_card(
         "LTV на покупателя (нетто)",
         f"{s['ltv']:,.0f} ₽",
-        "Разбор + вероятностные подписки"
+        "Анализ снов + вероятностные подписки"
     ), unsafe_allow_html=True)
 
 
@@ -810,9 +811,7 @@ with row2[2]:
 #  АНАЛИТИКА — вложенные вкладки
 # ═══════════════════════════════════════════════════
 st.divider()
-tab_c1, tab_c2, tab_c3, tab_c4 = st.tabs(
-    ["📊  P&L структура", "🔽  Воронка", "📅  Помесячно", "🔬  Сценарии"]
-)
+tab_c1, tab_c2, tab_c3 = st.tabs(["📊 Аналитика", "📅 Финансовая модель", "🔬 Сценарии"])
 
 # ── P&L ───────────────────────────────────────────
 with tab_c1:
@@ -959,7 +958,7 @@ with tab_c3:
         unsafe_allow_html=True
     )
     st.markdown(
-        '<p style="color:#818cf8;font-size:.86rem;margin-bottom:1rem">'
+        '<p style="color:var(--text-color);font-size:.86rem;margin-bottom:1rem">'
         'Как изменение конверсий в квизе и покупке влияет на ключевые метрики?</p>',
         unsafe_allow_html=True
     )
@@ -1084,7 +1083,7 @@ with tab_c3:
     df_ltv, c_ltv = format_diff(dr_ltv, suffix="×")
 
     with m5:
-        st.markdown(metric_card("Покупателей разборов", f"{test_purch:,.1f}".replace(",", " "), df_purch, c_purch), unsafe_allow_html=True)
+        st.markdown(metric_card("Покупателей анализов снов", f"{test_purch:,.1f}".replace(",", " "), df_purch, c_purch), unsafe_allow_html=True)
     with m6:
         st.markdown(metric_card("ROI сценария", f"{test_roi:+.1f}%", df_roi, c_roi), unsafe_allow_html=True)
     with m7:
@@ -1100,7 +1099,7 @@ if ltv_ratio < 1:
     st.error(
         "🔴 **LTV:CAC < 1×** — реклама не окупается. "
         "Бизнес убыточен на каждом привлечённом пользователе. "
-        "Пересмотрите цену разбора, конверсию воронки или снизьте CPC."
+        "Пересмотрите цену анализа, конверсию воронки или снизьте CPC."
     )
 elif ltv_ratio < 2:
     st.error(
@@ -1121,5 +1120,5 @@ else:
 st.caption(
     "💡 Расчёты носят оценочный характер и предназначены для стратегического планирования. "
     "Данные по умолчанию ориентированы на продукт Sleepsy: AI-анализ снов, "
-    "цена разбора 149 ₽, YooMoney/Lava, квиз-воронка без регистрации."
+    "цена анализа 149 ₽, YooMoney/Lava, квиз-воронка без регистрации."
 )
